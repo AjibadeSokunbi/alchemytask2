@@ -1,20 +1,20 @@
 const { Alchemy, Network } = require("alchemy-sdk");
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const txSchema = require(".txmodel");
 
 // Setting up port
 const connUri = process.env.CONNECTION_URL;
 let PORT = process.env.PORT || 5000;
 
 //=== 1 - CREATE APP
-// Creating express app 
+// Creating express app
 const app = express();
-app.use(express.json({ limit: '30mb'}))
-app.use(express.urlencoded({ limit: '30mb', extended: false }))
+app.use(express.json({ limit: "30mb" }));
+app.use(express.urlencoded({ limit: "30mb", extended: false }));
 app.use(cors());
 
 //=== 2 - SET UP DATABASE
@@ -23,10 +23,14 @@ mongoose.promise = global.Promise;
 mongoose.connect(connUri, { useNewUrlParser: true, useUnifiedTopology: true });
 
 const connection = mongoose.connection;
-connection.once('open', () => console.log('MongoDB --  database connection established successfully!'));
-connection.on('error', (err) => {
-    console.log("MongoDB connection error. Please make sure MongoDB is running. " + err);
-    process.exit();
+connection.once("open", () =>
+  console.log("MongoDB --  database connection established successfully!")
+);
+connection.on("error", (err) => {
+  console.log(
+    "MongoDB connection error. Please make sure MongoDB is running. " + err
+  );
+  process.exit();
 });
 
 // alchemy private key
@@ -38,8 +42,6 @@ const config = {
   network: Network.ETH_MAINNET,
 };
 const alchemy = new Alchemy(config);
-
-
 
 // first page of transaction
 async function firstPage() {
@@ -73,17 +75,28 @@ async function firstPage() {
   const arrayOfResultsValue = [];
   const arrayOfResults = [];
 
-
-
   //for loop of all events in first page of the transactions
   for (const events of res.transfers) {
     //push to empty array of transactions
     arrayOfResultsValue.push(events.value);
     arrayOfResults.push(events);
-    const listOfSenders = events.from
-    const listOfRecieverAddresses = events.to
-  }
+    const listOfSenders = events.from;
+    const listOfRecieverAddresses = events.to;
+    const listOfValues = events.value;
 
+    //save to database
+    exports.savePost = async (req, res) => {
+      const post = {
+        to: listOfSenders,
+        from: listOfRecieverAddresses,
+        value: listOfValues,
+      };
+
+      const data = await txSchema.create({ ...post });
+
+      res.status(201).json(data);
+    };
+  }
 
   //for loop of all events in second page of the transactions
   for (const events of secondPage.transfers) {
@@ -104,19 +117,24 @@ async function firstPage() {
       return accumulator + currentValue;
     }, 0)
   );
-  //2. highest sender's address, first get highest amount sent
-  exports.highestSenderAmount = arrayOfResultsValue.reduce((a, b) => {
+  //2. highest sender's and recievers address, first get highest amount sent
+  const highestSenderAmount = arrayOfResultsValue.reduce((a, b) => {
     return Math.max(a, b);
   });
-  console.log(arrayOfResults.find((value) => value > highestSenderAmount));
 
-  //3. highest recievers's address
-
-  console.log(arrayOfResults.find((to) => to === highestSenderAmount));
+  exports.findAddress = async (req, res) => {
+    try {
+      const highestSenderAddress = await txSchema.findOne(highestSenderAmount);
+      res.status(201).json(highestSenderAddress);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
 }
 
 firstPage();
 
 //=== 5 - START SERVER
-app.listen(PORT, () => console.log('Server running on http://localhost:'+PORT+'/'))
-
+app.listen(PORT, () =>
+  console.log("Server running on http://localhost:" + PORT + "/")
+);
