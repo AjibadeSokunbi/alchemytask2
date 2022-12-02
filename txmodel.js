@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 
 const txSchema = new mongoose.Schema({
-
+    
     to: {type: String},
     from: {type: String},
     sum: {type: Number}

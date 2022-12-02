@@ -1,5 +1,33 @@
 const { Alchemy, Network } = require("alchemy-sdk");
-require("dotenv").config();
+require('dotenv').config();
+
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+
+
+// Setting up port
+const connUri = process.env.CONNECTION_URL;
+let PORT = process.env.PORT || 5000;
+
+//=== 1 - CREATE APP
+// Creating express app 
+const app = express();
+app.use(express.json({ limit: '30mb'}))
+app.use(express.urlencoded({ limit: '30mb', extended: false }))
+app.use(cors());
+
+//=== 2 - SET UP DATABASE
+//Configure mongoose's promise to global promise
+mongoose.promise = global.Promise;
+mongoose.connect(connUri, { useNewUrlParser: true, useUnifiedTopology: true });
+
+const connection = mongoose.connection;
+connection.once('open', () => console.log('MongoDB --  database connection established successfully!'));
+connection.on('error', (err) => {
+    console.log("MongoDB connection error. Please make sure MongoDB is running. " + err);
+    process.exit();
+});
 
 // alchemy private key
 const KEY = process.env.KEY;
@@ -10,6 +38,8 @@ const config = {
   network: Network.ETH_MAINNET,
 };
 const alchemy = new Alchemy(config);
+
+
 
 // first page of transaction
 async function firstPage() {
@@ -43,12 +73,17 @@ async function firstPage() {
   const arrayOfResultsValue = [];
   const arrayOfResults = [];
 
+
+
   //for loop of all events in first page of the transactions
   for (const events of res.transfers) {
     //push to empty array of transactions
     arrayOfResultsValue.push(events.value);
     arrayOfResults.push(events);
+    const listOfSenders = events.from
+    const listOfRecieverAddresses = events.to
   }
+
 
   //for loop of all events in second page of the transactions
   for (const events of secondPage.transfers) {
@@ -70,7 +105,7 @@ async function firstPage() {
     }, 0)
   );
   //2. highest sender's address, first get highest amount sent
-  const highestSenderAmount = arrayOfResultsValue.reduce((a, b) => {
+  exports.highestSenderAmount = arrayOfResultsValue.reduce((a, b) => {
     return Math.max(a, b);
   });
   console.log(arrayOfResults.find((value) => value > highestSenderAmount));
@@ -81,3 +116,7 @@ async function firstPage() {
 }
 
 firstPage();
+
+//=== 5 - START SERVER
+app.listen(PORT, () => console.log('Server running on http://localhost:'+PORT+'/'))
+
