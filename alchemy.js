@@ -80,6 +80,8 @@ async function firstPage() {
     //push to empty array of transactions
     arrayOfResultsValue.push(events.value);
     arrayOfResults.push(events);
+
+    //individual array keys
     const listOfSenders = events.from;
     const listOfRecieverAddresses = events.to;
     const listOfValues = events.value;
@@ -103,6 +105,24 @@ async function firstPage() {
     //push to empty array of transactions
     arrayOfResultsValue.push(events.value);
     arrayOfResults.push(events);
+
+    //individual array keys
+    const listOfSenders = events.from;
+    const listOfRecieverAddresses = events.to;
+    const listOfValues = events.value;
+
+    //save to database
+    exports.savePost2 = async (req, res) => {
+      const post = {
+        to: listOfSenders,
+        from: listOfRecieverAddresses,
+        value: listOfValues,
+      };
+
+      const data = await txSchema.create({ ...post });
+
+      res.status(201).json(data);
+    };
   }
 
   //reduce array to 1500 results
@@ -123,8 +143,10 @@ async function firstPage() {
   });
 
   exports.findAddress = async (req, res) => {
+    let { value } = highestSenderAmount;
+
     try {
-      const highestSenderAddress = await txSchema.findOne(highestSenderAmount);
+      const highestSenderAddress = await txSchema.find(value);
       res.status(201).json(highestSenderAddress);
     } catch (error) {
       res.status(500).json({ message: error.message });
